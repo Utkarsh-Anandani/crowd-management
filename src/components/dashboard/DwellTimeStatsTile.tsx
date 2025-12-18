@@ -9,7 +9,6 @@ interface DwellTimeStatsTileProps {
 
 export function DwellTimeStatsTile({ selectedSite, selectedDate }: DwellTimeStatsTileProps) {
   const [avgDwellTime, setAvgDwellTime] = useState<number>(0);
-  const [previousDayDwellTime, setPreviousDayDwellTime] = useState<number>(0);
   const [dwellChange, setDwellChange] = useState<string>("0% More than yesterday");
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -69,7 +68,6 @@ export function DwellTimeStatsTile({ selectedSite, selectedDate }: DwellTimeStat
         });
 
         const dataYesterday = await responseYesterday.json();
-        setPreviousDayDwellTime(dataYesterday.avgDwellMinutes);
 
         const dwellDiff = dataToday.avgDwellMinutes - dataYesterday.avgDwellMinutes;
         const dwellPercentChange = dataYesterday.avgDwellMinutes !== 0

@@ -58,8 +58,8 @@ export function DemographicsPieChart({ selectedDate, selectedSite }: PieChartPro
       const data = await response.json()
 
       if (data && data.buckets) {
-        const totalMale = data.buckets.reduce((acc, bucket) => acc + bucket.male, 0)
-        const totalFemale = data.buckets.reduce((acc, bucket) => acc + bucket.female, 0)
+        const totalMale = data.buckets.reduce((acc: any, bucket: any) => acc + bucket.male, 0)
+        const totalFemale = data.buckets.reduce((acc: any, bucket: any) => acc + bucket.female, 0)
 
         setChartData([
           { gender: "Male", count: totalMale, fill: chartConfig.male.color },

@@ -19,7 +19,6 @@ export function FootfallStatsTile({
   selectedDate,
 }: FootfallStatsTileProps) {
   const [footfall, setFootfall] = useState<number>(0);
-  const [previousDayFootfall, setPreviousDayFootfall] = useState<number>(0);
   const [footfallChange, setFootfallChange] = useState<string>(
     "0% More than yesterday"
   );
@@ -110,7 +109,6 @@ export function FootfallStatsTile({
         );
 
         const previousDayData = await previousDayResponse.json();
-        setPreviousDayFootfall(previousDayData.footfall);
 
         // Calculate the footfall change (percentage)
         const footfallDiff =
