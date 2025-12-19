@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Site } from "@/pages/DasboardPage";
 import { convertDecimalToTime } from "@/helpers/dashboard/time";
-import { API_BASE_URL } from "@/helpers/auth/loginHelper";
+import { API_BASE_URL, logout } from "@/helpers/auth/loginHelper";
+import { useDispatch } from "react-redux";
 
 interface VisitorTableProps {
   itemsPerPage?: number;
@@ -45,6 +46,7 @@ export function VisitorTable({
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch();
 
   const fetchVisitors = async () => {
     if (!selectedSite) return;
@@ -72,6 +74,11 @@ export function VisitorTable({
           pageSize: itemsPerPage,
         }),
       });
+
+      if (response.status === 403) {
+        logout(dispatch);
+        console.error("Invalid or Expired token");
+      }
 
       if (!response.ok) {
         throw new Error("Failed to fetch visitors data");

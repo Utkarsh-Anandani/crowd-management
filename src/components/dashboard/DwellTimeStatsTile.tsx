@@ -1,16 +1,30 @@
 import { useState, useEffect } from "react";
 import type { Site } from "@/pages/DasboardPage";
-import { API_BASE_URL } from "@/helpers/auth/loginHelper";
+import { API_BASE_URL, logout } from "@/helpers/auth/loginHelper";
+import DwellTimeTileSkeleton from "../skeletons/DwellTimeTileSkeleton";
+import { useDispatch } from "react-redux";
 
 interface DwellTimeStatsTileProps {
   selectedSite?: Site | null;
   selectedDate: Date;
 }
 
-export function DwellTimeStatsTile({ selectedSite, selectedDate }: DwellTimeStatsTileProps) {
+interface RequestBody {
+  siteId: string;
+  toUtc: string;
+  fromUtc: string;
+}
+
+export function DwellTimeStatsTile({
+  selectedSite,
+  selectedDate,
+}: DwellTimeStatsTileProps) {
   const [avgDwellTime, setAvgDwellTime] = useState<number>(0);
-  const [dwellChange, setDwellChange] = useState<string>("0% More than yesterday");
-  const [loading, setLoading] = useState<boolean>(false);
+  const [dwellChange, setDwellChange] = useState<string>(
+    "0% More than yesterday"
+  );
+  const [loading, setLoading] = useState<boolean>(true);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (!selectedSite) return;
@@ -30,8 +44,8 @@ export function DwellTimeStatsTile({ selectedSite, selectedDate }: DwellTimeStat
 
         const startOfYesterday = new Date(selectedDate);
         startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-        const startOfYesterdaySameTime = startOfYesterday.getTime();
         startOfYesterday.setHours(0, 0, 0, 0);
+        const startOfYesterdaySameTime = startOfYesterday.getTime();
         const startOfYesterdayTimestamp = startOfYesterday.getTime();
 
         const requestBodyToday = {
@@ -46,38 +60,43 @@ export function DwellTimeStatsTile({ selectedSite, selectedDate }: DwellTimeStat
           fromUtc: startOfYesterdayTimestamp.toString(),
         };
 
-        const responseToday = await fetch(`${API_BASE_URL}/api/analytics/dwell`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBodyToday),
-        });
+        const fetchData = async (body: RequestBody) => {
+          const response = await fetch(`${API_BASE_URL}/api/analytics/dwell`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          });
+          if (response.status === 403) {
+            logout(dispatch);
+            console.error("Invalid or Expired token");
+          }
+          return await response.json();
+        };
 
-        const dataToday = await responseToday.json();
+        // Fetch both today's and yesterday's data concurrently
+        const [dataToday, dataYesterday] = await Promise.all([
+          fetchData(requestBodyToday),
+          fetchData(requestBodyYesterday),
+        ]);
+
         setAvgDwellTime(dataToday.avgDwellMinutes);
 
-        const responseYesterday = await fetch(`${API_BASE_URL}/api/analytics/dwell`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBodyYesterday),
-        });
+        // Calculate the dwell time change (percentage)
+        const dwellDiff =
+          dataToday.avgDwellMinutes - dataYesterday.avgDwellMinutes;
+        const dwellPercentChange =
+          dataYesterday.avgDwellMinutes !== 0
+            ? ((dwellDiff / dataYesterday.avgDwellMinutes) * 100).toFixed(2)
+            : "0";
 
-        const dataYesterday = await responseYesterday.json();
-
-        const dwellDiff = dataToday.avgDwellMinutes - dataYesterday.avgDwellMinutes;
-        const dwellPercentChange = dataYesterday.avgDwellMinutes !== 0
-          ? ((dwellDiff / dataYesterday.avgDwellMinutes) * 100).toFixed(2)
-          : "0";
-          if(Number(dwellPercentChange) > 0) {
-            setDwellChange(`${dwellPercentChange}% More than yesterday`);
-          } else {
-            setDwellChange(`${-Number(dwellPercentChange)}% Less than yesterday`);
-          }
+        setDwellChange(
+          Number(dwellPercentChange) > 0
+            ? `${dwellPercentChange}% More than yesterday`
+            : `${-Number(dwellPercentChange)}% Less than yesterday`
+        );
       } catch (error) {
         console.error("Error fetching dwell time data:", error);
       } finally {
@@ -88,19 +107,25 @@ export function DwellTimeStatsTile({ selectedSite, selectedDate }: DwellTimeStat
     fetchDwellTime();
   }, [selectedSite, selectedDate]);
 
+  if (loading) {
+    return <DwellTimeTileSkeleton />;
+  }
+
   return (
     <div className="p-4 rounded-lg bg-white w-full lg:w-1/3">
       <div className="flex flex-col gap-4">
         <h4 className="font-medium text-[16px] text-[#030303] leading-[100%]">
           Avg Dwell Time
         </h4>
-        {loading ? (
-          <p className="font-medium text-2xl text-[#030303] leading-6">Loading...</p>
-        ) : (
-          <p className="font-medium text-2xl text-[#030303] leading-6">{avgDwellTime.toFixed(2)} minutes</p>
-        )}
+        <p className="font-medium text-2xl text-[#030303] leading-6">
+          {avgDwellTime.toFixed(2)} minutes
+        </p>
         <div className="flex flex-col gap-0.5">
-          {dwellChange.includes("Less") ? <img className="w-4 h-4" src="/dashboard/fall.svg" alt="rise" /> : <img className="w-4 h-4" src="/dashboard/rise.svg" alt="rise" />}
+          {dwellChange.includes("Less") ? (
+            <img className="w-4 h-4" src="/dashboard/fall.svg" alt="rise" />
+          ) : (
+            <img className="w-4 h-4" src="/dashboard/rise.svg" alt="rise" />
+          )}
           <span className="font-light text-sm text-[#030303] leading-3.5">
             {dwellChange}
           </span>

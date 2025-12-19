@@ -8,21 +8,20 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
-export function SocketProvider({ children }: { children: any}) {
+export function SocketProvider({ children }: { children: any }) {
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const authToken = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token");
+    setAuthToken(token);
+  }, []);
 
-    if (!authToken) {
-      console.error("Authentication token is missing");
-      return;
-    }
+  useEffect(() => {
+    if (!authToken) return;
 
     const newSocket = io(API_BASE_URL, {
-      auth: {
-        token: authToken,
-      },
+      auth: { token: authToken },
     });
 
     newSocket.on("connect_error", (err) => {
@@ -34,14 +33,14 @@ export function SocketProvider({ children }: { children: any}) {
     return () => {
       newSocket.disconnect();
     };
-  }, []);
+  }, [authToken]);
 
   return (
     <SocketContext.Provider value={{ socket }}>
       {children}
     </SocketContext.Provider>
   );
-};
+}
 
 export const useSocket = (): SocketContextType => {
   const context = useContext(SocketContext);

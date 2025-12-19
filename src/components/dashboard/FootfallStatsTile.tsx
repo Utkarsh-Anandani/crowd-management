@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 import type { Site } from "@/pages/DasboardPage";
-import { API_BASE_URL } from "@/helpers/auth/loginHelper";
+import { API_BASE_URL, logout } from "@/helpers/auth/loginHelper";
 import { useSocket } from "@/helpers/dashboard/socketContext";
+import FootFallTileSkeleton from "../skeletons/FootfallTileSkeleton";
+import { useDispatch } from "react-redux";
 
 interface FootfallStatsTileProps {
   selectedSite?: Site | null;
   selectedDate: Date;
+}
+
+interface RequestBody {
+  siteId: string;
+  toUtc: string;
+  fromUtc: string;
 }
 
 interface Notification {
@@ -22,9 +30,10 @@ export function FootfallStatsTile({
   const [footfallChange, setFootfallChange] = useState<string>(
     "0% More than yesterday"
   );
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [liveOccupancy, setLiveOccupancy] = useState<Notification | null>(null);
   const { socket } = useSocket();
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (!socket || !selectedSite) return;
@@ -84,46 +93,44 @@ export function FootfallStatsTile({
           fromUtc: previousDayTimestamp.toString(),
         };
 
-        const response = await fetch(`${API_BASE_URL}/api/analytics/footfall`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
+        const fetchData = async (body: RequestBody) => {
+          const response = await fetch(
+            `${API_BASE_URL}/api/analytics/footfall`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(body),
+            }
+          );
+          if (response.status === 403) {
+          logout(dispatch);
+          console.error("Invalid or Expired token");
+        }
+          return await response.json();
+        };
 
-        const selectedDayData = await response.json();
+        const [selectedDayData, previousDayData] = await Promise.all([
+          fetchData(requestBody),
+          fetchData(previousDayRequestBody),
+        ]);
+
         setFootfall(selectedDayData.footfall);
 
-        const previousDayResponse = await fetch(
-          `${API_BASE_URL}/api/analytics/footfall`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(previousDayRequestBody),
-          }
-        );
-
-        const previousDayData = await previousDayResponse.json();
-
-        // Calculate the footfall change (percentage)
         const footfallDiff =
           selectedDayData.footfall - previousDayData.footfall;
         const footfallPercentChange =
           previousDayData.footfall !== 0
             ? ((footfallDiff / previousDayData.footfall) * 100).toFixed(2)
             : "0";
-        if (Number(footfallPercentChange) > 0) {
-          setFootfallChange(`${footfallPercentChange}% More than yesterday`);
-        } else {
-          setFootfallChange(
-            `${-Number(footfallPercentChange)}% Less than yesterday`
-          );
-        }
+
+        setFootfallChange(
+          Number(footfallPercentChange) > 0
+            ? `${footfallPercentChange}% More than yesterday`
+            : `${-Number(footfallPercentChange)}% Less than yesterday`
+        );
       } catch (error) {
         console.error("Error fetching footfall data:", error);
       } finally {
@@ -133,6 +140,10 @@ export function FootfallStatsTile({
 
     fetchFootfall();
   }, [selectedSite, selectedDate]);
+
+  if (loading) {
+    return <FootFallTileSkeleton />;
+  }
 
   return (
     <div className="p-4 rounded-lg bg-white flex flex-col sm:flex-row items-start justify-start gap-5 sm:gap-20 w-full lg:w-2/3">
@@ -144,7 +155,6 @@ export function FootfallStatsTile({
           {liveOccupancy?.siteOccupancy || "--"}
         </p>
         <div className="flex flex-col gap-0.5">
-          {/* <img className="w-4 h-4" src="/dashboard/rise.svg" alt="rise" /> */}
           <span className="font-light text-sm text-[#030303] leading-3.5">
             Last updated at {liveOccupancy?.timestamp || "--"}
           </span>
@@ -156,15 +166,10 @@ export function FootfallStatsTile({
         <h4 className="font-medium text-[16px] text-[#030303] leading-[100%]">
           Today's Footfall
         </h4>
-        {loading ? (
-          <p className="font-medium text-2xl text-[#030303] leading-6">
-            Loading...
-          </p>
-        ) : (
-          <p className="font-medium text-2xl text-[#030303] leading-6">
-            {footfall}
-          </p>
-        )}
+
+        <p className="font-medium text-2xl text-[#030303] leading-6">
+          {footfall}
+        </p>
         <div className="flex flex-col gap-0.5">
           {footfallChange.includes("Less") ? (
             <img className="w-4 h-4" src="/dashboard/fall.svg" alt="rise" />

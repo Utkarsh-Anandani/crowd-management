@@ -7,6 +7,31 @@ import { useEffect, useState } from "react";
 
 type RouteType = "overview" | "entries";
 
+export const defaultSite: Site = {
+  siteId: "8bd0d580-fdac-44a4-a6e4-367253099c4e",
+  name: "Dubai Mall",
+  city: "Dubai",
+  country: "UAE",
+  timezone: "Asia/Dubai",
+  zones: [
+    {
+      zoneId: "788ab32d-bc8f-4071-9dbc-0bf44ecdb6b1",
+      name: "Dubai Mall HIGH Zone",
+      securityLevel: "high",
+    },
+    {
+      zoneId: "2201d536-2b05-4e47-a971-aba2129a3bbf",
+      name: "Dubai Mall MEDIUM Zone",
+      securityLevel: "medium",
+    },
+    {
+      zoneId: "f100dd38-90f3-4e3e-a9f5-a3e40911c99c",
+      name: "Dubai Mall LOW Zone",
+      securityLevel: "low",
+    },
+  ],
+};
+
 export interface Zone {
   zoneId: string;
   name: string;
@@ -26,7 +51,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [notificationsOpen, setNotificationsOpen] = useState<boolean>(false);
   const [currentRoute, setCurrentRoute] = useState<RouteType>("overview");
-  const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [selectedSite, setSelectedSite] = useState<Site | null>(defaultSite);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   useEffect(() => {
